@@ -143,6 +143,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+node_modules/
+frontend/dist/
+backend/app/static/assets/
 
 # Spyder project settings
 .spyderproject

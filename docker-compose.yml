@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - "5433:5432"
+    volumes:
+      - srm_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web-build:
+    image: node:20-alpine
+    working_dir: /frontend
+    volumes:
+      - ./frontend:/frontend
+      - web_dist:/dist
+    command: >-
+      sh -c "npm install && npm run build && mkdir -p /dist && rm -rf /dist/* && cp -r dist/. /dist/"
+
+  api:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - web_dist:/app/app/static
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      web-build:
+        condition: service_completed_successfully
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  srm_db_data:
+  web_dist:
