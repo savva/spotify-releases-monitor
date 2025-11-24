@@ -7,6 +7,7 @@ from app.core.deps import get_current_user
 from app.db.session import get_session
 from app.models import User
 from app.schemas.spotify import PlaylistAddRequest, PlaylistAddResponse
+from app.services.recent_tracks import RecentTracksSyncService
 from app.services.spotify import SpotifyService
 
 router = APIRouter()
@@ -17,8 +18,7 @@ async def recent_tracks(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    spotify = SpotifyService(session)
-    return await spotify.get_recent_tracks(current_user)
+    return await RecentTracksSyncService(session).sync(current_user)
 
 
 @router.post("/playlists/{playlist_id}/add", response_model=PlaylistAddResponse)

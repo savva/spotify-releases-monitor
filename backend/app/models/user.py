@@ -33,7 +33,11 @@ class User(Base):
     token: Mapped["Token | None"] = relationship(
         "Token", back_populates="user", cascade="all, delete-orphan", uselist=False
     )
+    recent_tracks: Mapped[list["RecentTrack"]] = relationship(
+        "RecentTrack", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 if TYPE_CHECKING:  # pragma: no cover
     from app.models.token import Token
+    from app.models.recent_track import RecentTrack
