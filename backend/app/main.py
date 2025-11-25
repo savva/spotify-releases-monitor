@@ -1,5 +1,8 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -7,9 +10,30 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.tasks import sync_recent_tracks_for_all_users
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name)
+scheduler = AsyncIOScheduler()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    if not scheduler.running:
+        scheduler.add_job(
+            sync_recent_tracks_for_all_users,
+            trigger=IntervalTrigger(minutes=5),
+            id="sync_recent_tracks",
+            replace_existing=True,
+        )
+        scheduler.start()
+    try:
+        yield
+    finally:
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 if settings.cors_origins:
     app.add_middleware(
