@@ -22,6 +22,8 @@ class SpotifyService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.settings = get_settings()
+        self._app_token: str | None = None
+        self._app_token_expires_at: datetime | None = None
 
     async def exchange_code_for_tokens(self, code: str) -> dict[str, Any]:
         data = {
@@ -103,6 +105,27 @@ class SpotifyService:
             access_token,
             json=payload,
         )
+
+    async def get_app_access_token(self) -> str:
+        now = datetime.now(timezone.utc)
+        if self._app_token and self._app_token_expires_at and self._app_token_expires_at > now + timedelta(seconds=60):
+            return self._app_token
+
+        payload = await self._request_token({"grant_type": "client_credentials"})
+        access_token = payload.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=500, detail="Spotify token request failed")
+        expires_in = payload.get("expires_in", 0)
+        self._app_token = access_token
+        self._app_token_expires_at = now + timedelta(seconds=expires_in)
+        return access_token
+
+    async def search_new_releases(self, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        access_token = await self.get_app_access_token()
+        safe_limit = max(1, min(limit, 50))
+        safe_offset = max(0, offset)
+        params = {"q": "tag:new", "type": "album", "limit": safe_limit, "offset": safe_offset}
+        return await self._api_request("GET", "/search", access_token, params=params)
 
     async def _ensure_access_token(self, user: User) -> str:
         token = await self._get_user_token(user.id)

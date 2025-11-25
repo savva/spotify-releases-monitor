@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import get_settings
-from app.tasks import sync_recent_tracks_for_all_users
+from app.tasks import sync_new_releases, sync_recent_tracks_for_all_users
 
 settings = get_settings()
 scheduler = AsyncIOScheduler()
@@ -23,6 +23,12 @@ async def lifespan(_: FastAPI):
             sync_recent_tracks_for_all_users,
             trigger=IntervalTrigger(minutes=5),
             id="sync_recent_tracks",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            sync_new_releases,
+            trigger=IntervalTrigger(minutes=15),
+            id="sync_new_releases",
             replace_existing=True,
         )
         scheduler.start()
