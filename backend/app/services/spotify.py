@@ -138,6 +138,18 @@ class SpotifyService:
         params = {"limit": safe_limit, "offset": safe_offset}
         return await self._api_request("GET", f"/albums/{album_id}/tracks", access_token, params=params)
 
+    async def get_tracks(self, ids: list[str]) -> dict[str, Any]:
+        access_token = await self.get_app_access_token()
+        chunk = ",".join(ids[:50])
+        params = {"ids": chunk}
+        return await self._api_request("GET", "/tracks", access_token, params=params)
+
+    async def get_artists(self, ids: list[str]) -> dict[str, Any]:
+        access_token = await self.get_app_access_token()
+        chunk = ",".join(ids[:50])
+        params = {"ids": chunk}
+        return await self._api_request("GET", "/artists", access_token, params=params)
+
     async def _ensure_access_token(self, user: User) -> str:
         token = await self._get_user_token(user.id)
         if token is None:

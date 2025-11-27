@@ -14,6 +14,8 @@ from app.tasks import (
     sync_new_releases,
     sync_recent_release_details,
     sync_recent_tracks_for_all_users,
+    sync_track_details,
+    sync_artist_details,
 )
 
 settings = get_settings()
@@ -39,6 +41,18 @@ async def lifespan(_: FastAPI):
             sync_recent_release_details,
             trigger=IntervalTrigger(minutes=10),
             id="sync_recent_release_details",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            sync_track_details,
+            trigger=IntervalTrigger(minutes=6),
+            id="sync_track_details",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            sync_artist_details,
+            trigger=IntervalTrigger(minutes=12),
+            id="sync_artist_details",
             replace_existing=True,
         )
         scheduler.start()
