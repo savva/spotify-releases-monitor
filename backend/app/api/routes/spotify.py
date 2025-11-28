@@ -6,7 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.db.session import get_session
 from app.models import User
-from app.schemas.spotify import PlaylistAddRequest, PlaylistAddResponse
+from app.schemas.spotify import (
+    PlaylistAddRequest,
+    PlaylistAddResponse,
+    PlaylistLinkRequest,
+    PlaylistPreviewResponse,
+)
+from app.services.playlist_refresh import PlaylistRefreshService
 from app.services.recent_tracks import RecentTracksSyncService
 from app.services.spotify import SpotifyService
 
@@ -31,3 +37,25 @@ async def add_tracks(
     spotify = SpotifyService(session)
     result = await spotify.add_tracks_to_playlist(playlist_id, payload.uris, current_user)
     return PlaylistAddResponse.model_validate(result)
+
+
+@router.post("/playlists/preview", response_model=PlaylistPreviewResponse)
+async def preview_playlist(
+    payload: PlaylistLinkRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> PlaylistPreviewResponse:
+    service = PlaylistRefreshService(session)
+    result = await service.preview_playlist(payload.playlist_url, current_user)
+    return PlaylistPreviewResponse.model_validate(result)
+
+
+@router.post("/playlists/refresh", response_model=PlaylistPreviewResponse)
+async def refresh_playlist(
+    payload: PlaylistLinkRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> PlaylistPreviewResponse:
+    service = PlaylistRefreshService(session)
+    result = await service.refresh_playlist(payload.playlist_url, current_user)
+    return PlaylistPreviewResponse.model_validate(result)

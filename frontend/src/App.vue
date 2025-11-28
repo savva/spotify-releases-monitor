@@ -49,6 +49,52 @@
       </section>
 
       <section class="panel">
+        <h3>Playlist refresh</h3>
+        <form @submit.prevent="loadPlaylistPreview" class="playlist-form">
+          <label>
+            Playlist link or ID
+            <input v-model="playlistLink" placeholder="https://open.spotify.com/playlist/…" required />
+          </label>
+          <div class="actions gap">
+            <button class="primary" type="submit" :disabled="playlistLoading">
+              {{ playlistLoading ? 'Loading…' : 'Load playlist' }}
+            </button>
+            <button
+              class="ghost"
+              type="button"
+              :disabled="playlistRefreshing"
+              @click="refreshPlaylist"
+            >
+              {{ playlistRefreshing ? 'Refreshing…' : 'Refresh playlist' }}
+            </button>
+          </div>
+        </form>
+
+        <p v-if="playlistStatus" class="message success">{{ playlistStatus }}</p>
+
+        <div v-if="playlistData" class="playlist-details">
+          <div class="playlist-header">
+            <div>
+              <p class="subtitle">Playlist</p>
+              <h4>{{ playlistData.name || playlistData.playlist_id }}</h4>
+            </div>
+            <span class="badge">Tracks: {{ playlistData.tracks.length }}</span>
+          </div>
+          <ul class="playlist-tracks">
+            <li v-for="track in playlistData.tracks" :key="track.id" class="track">
+              <div>
+                <p class="track-name">{{ track.name }}</p>
+                <p class="track-meta">
+                  {{ (track.artists || []).join(', ') }} <span v-if="track.album">• {{ track.album }}</span>
+                </p>
+              </div>
+              <span class="track-popularity" v-if="track.popularity != null">Pop {{ track.popularity }}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="panel">
         <h3>Add tracks to playlist</h3>
         <form @submit.prevent="addTracks">
           <label>
@@ -79,16 +125,26 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { apiClient, getApiBaseUrl, resolveErrorMessage } from './lib/api';
-import type { PlaylistAddResponse, RecentTracksResponse, User } from './lib/types';
+import type {
+  PlaylistAddResponse,
+  PlaylistPreviewResponse,
+  RecentTracksResponse,
+  User,
+} from './lib/types';
 
 const user = ref<User | null>(null);
 const recentTracks = ref<RecentTracksResponse | null>(null);
 const playlistId = ref('');
 const trackUris = ref('');
+const playlistLink = ref('');
 const message = ref('');
 const error = ref('');
 const addLoading = ref(false);
 const recentLoading = ref(false);
+const playlistLoading = ref(false);
+const playlistRefreshing = ref(false);
+const playlistData = ref<PlaylistPreviewResponse | null>(null);
+const playlistStatus = ref('');
 
 const apiBase = getApiBaseUrl();
 
@@ -170,6 +226,46 @@ function formatArtists(artists: { name: string }[]) {
   return artists.map((artist) => artist.name).join(', ');
 }
 
+async function loadPlaylistPreview() {
+  if (!playlistLink.value.trim()) {
+    error.value = 'Enter a playlist link or ID';
+    return;
+  }
+  playlistLoading.value = true;
+  playlistStatus.value = '';
+  try {
+    const { data } = await apiClient.post<PlaylistPreviewResponse>('/spotify/playlists/preview', {
+      playlist_url: playlistLink.value.trim(),
+    });
+    playlistData.value = data;
+    error.value = '';
+  } catch (err) {
+    error.value = resolveErrorMessage(err);
+  } finally {
+    playlistLoading.value = false;
+  }
+}
+
+async function refreshPlaylist() {
+  if (!playlistLink.value.trim()) {
+    error.value = 'Enter a playlist link or ID';
+    return;
+  }
+  playlistRefreshing.value = true;
+  try {
+    const { data } = await apiClient.post<PlaylistPreviewResponse>('/spotify/playlists/refresh', {
+      playlist_url: playlistLink.value.trim(),
+    });
+    playlistData.value = data;
+    playlistStatus.value = `Removed ${data.removed} listened tracks, added ${data.added} new ones`;
+    error.value = '';
+  } catch (err) {
+    error.value = resolveErrorMessage(err);
+  } finally {
+    playlistRefreshing.value = false;
+  }
+}
+
 onMounted(async () => {
   await fetchCurrentUser();
   if (isAuthenticated.value) {
@@ -224,6 +320,10 @@ header {
   justify-content: flex-end;
 }
 
+.actions.gap {
+  gap: 0.75rem;
+}
+
 button.primary {
   background: #22c55e;
   padding: 0.75rem 1.5rem;
@@ -272,6 +372,46 @@ textarea {
   padding: 0.75rem 1rem;
   border-radius: 12px;
   background: rgba(15, 23, 42, 0.65);
+}
+
+.playlist-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.playlist-details {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.playlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.playlist-tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.track-popularity {
+  font-size: 0.85rem;
+  color: #cbd5e1;
 }
 
 .track-name {

@@ -106,6 +106,34 @@ class SpotifyService:
             json=payload,
         )
 
+    async def remove_tracks_from_playlist(self, playlist_id: str, uris: list[str], user: User) -> dict[str, Any]:
+        access_token = await self._ensure_access_token(user)
+        payload = {"tracks": [{"uri": uri} for uri in uris]}
+        return await self._api_request(
+            "DELETE",
+            f"/playlists/{playlist_id}/tracks",
+            access_token,
+            json=payload,
+        )
+
+    async def get_playlist(self, playlist_id: str, user: User) -> dict[str, Any]:
+        access_token = await self._ensure_access_token(user)
+        return await self._api_request("GET", f"/playlists/{playlist_id}", access_token)
+
+    async def get_playlist_tracks(
+        self,
+        playlist_id: str,
+        user: User,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        access_token = await self._ensure_access_token(user)
+        safe_limit = max(1, min(limit, 100))
+        safe_offset = max(0, offset)
+        params = {"limit": safe_limit, "offset": safe_offset}
+        return await self._api_request("GET", f"/playlists/{playlist_id}/tracks", access_token, params=params)
+
     async def get_app_access_token(self) -> str:
         now = datetime.now(timezone.utc)
         if self._app_token and self._app_token_expires_at and self._app_token_expires_at > now + timedelta(seconds=60):
