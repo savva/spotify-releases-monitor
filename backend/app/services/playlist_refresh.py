@@ -48,16 +48,34 @@ class PlaylistRefreshService:
         # Refresh recent listening from Spotify, then rely on stored data
         await RecentTracksSyncService(self.session).sync(user)
         listened_ids = await self._get_listened_track_ids(user)
+        logger.info(
+            f"Starting playlist refresh - playlist_id={playlist_id}, listened_count={len(listened_ids)}, target_size={target_size}"
+        )
 
         playlist, tracks = await self._fetch_playlist_with_tracks(playlist_id, user)
 
         to_remove = [
             track.uri for track in tracks if track.track_id and track.track_id in listened_ids and track.uri
         ]
+
+        logger.info(
+            f'Listened track IDs: {listened_ids}'
+        )
+        logger.info(
+            f'Current playlist tracks: {[track.track_id for track in tracks]}'
+        )
+
+
+        logger.info(
+            f"Computed tracks to remove - playlist_id={playlist_id}, current_track_count={len(tracks)}, to_remove_count={len(to_remove)}"
+        )
         removed = 0
         if to_remove:
             await self.spotify.remove_tracks_from_playlist(playlist_id, to_remove, user)
             removed = len(to_remove)
+            logger.info(
+                f"Removed listened tracks from playlist - playlist_id={playlist_id}, removed={removed}"
+            )
 
         # Re-fetch after removals
         playlist, tracks = await self._fetch_playlist_with_tracks(playlist_id, user)
@@ -65,12 +83,18 @@ class PlaylistRefreshService:
 
         needed = max(0, target_size - len(current_ids))
         added = 0
+        logger.info(
+            f"Post-removal playlist state - playlist_id={playlist_id}, current_track_count={len(current_ids)}, needed={needed}, target_size={target_size}"
+        )
         if needed:
             candidates = await self._get_candidate_tracks(exclude_ids=current_ids | listened_ids, limit=needed)
             if candidates:
                 uris = [f"spotify:track:{track_id}" for track_id in candidates]
                 await self.spotify.add_tracks_to_playlist(playlist_id, uris, user)
                 added = len(uris)
+                logger.info(
+                    f"Added candidate tracks to playlist - playlist_id={playlist_id}, added={added}, candidate_pool={len(candidates)}"
+                )
                 playlist, tracks = await self._fetch_playlist_with_tracks(playlist_id, user)
 
         return self._build_response(playlist_id, playlist, tracks, removed=removed, added=added)

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -17,6 +18,18 @@ from app.tasks import (
     sync_track_details,
     sync_artist_details,
 )
+
+# Ensure app logs (info-level) are emitted with a simple format.
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s - %(message)s",
+        force=True,
+    )
+
+# Set uvicorn loggers to INFO as well
+logging.getLogger("uvicorn").setLevel(logging.INFO)
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
 
 settings = get_settings()
 scheduler = AsyncIOScheduler()

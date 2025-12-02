@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     app_name: str = "Spotify Releases Monitor"
     app_env: str = Field(default="dev", alias="APP_ENV")
     app_url: str = Field(default="http://localhost:5173", alias="APP_URL")
-    api_url: str = Field(default="http://localhost:8000", alias="API_URL")
+    api_url: str = Field(default="http://127.0.0.1:8000", alias="API_URL")
     secret_key: str = Field(default="change-me", alias="SECRET_KEY")
     jwt_alg: str = Field(default="HS256", alias="JWT_ALG")
     jwt_ttl_min: int = Field(default=60 * 24, alias="JWT_TTL_MIN")
